@@ -56,3 +56,7 @@ Se utilizarán diferentes funcionalidades de Git, como:
 ## Control de versiones
 
 El proyecto utiliza Git para controlar las diferentes versiones del desarrollo.
+
+## Desarrollo del proyecto
+
+El desarrollo del proyecto se organiza mediante control de versiones.
