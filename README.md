@@ -60,3 +60,8 @@ El proyecto utiliza Git para controlar las diferentes versiones del desarrollo.
 ## Desarrollo del proyecto
 
 El desarrollo del proyecto se organiza mediante control de versiones.
+
+## Trabajo en equipo
+
+El proyecto se desarrolla de forma colaborativa utilizando Git y GitHub.
+
