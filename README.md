@@ -56,3 +56,7 @@ Se utilizarán diferentes funcionalidades de Git, como:
 ## Control de versiones
 
 El proyecto utiliza Git para controlar las diferentes versiones del desarrollo.
+
+## Trabajo en equipo
+
+El proyecto se desarrolla de forma colaborativa utilizando Git y GitHub.
