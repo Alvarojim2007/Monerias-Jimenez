@@ -52,3 +52,7 @@ Se utilizarán diferentes funcionalidades de Git, como:
 
 \- Markdown
 
+
+## Control de versiones
+
+El proyecto utiliza Git para controlar las diferentes versiones del desarrollo.
