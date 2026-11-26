@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CICT · Gestión de Equipos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- Supabase JS v2 -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+
+<!-- ================= CONFIGURACIÓN (pega aquí tus claves) ================= -->
+<script>
+  const SUPABASE_URL = 'https://TU-PROYECTO.supabase.co';
+  const SUPABASE_ANON_KEY = 'TU_ANON_PUBLIC_KEY';
+</script>
+
+<style>
+/* === CSS GLOBAL === */
+:root{
+  --bone:#F2F4F1; --panel:#FFFFFF; --ink:#12262B; --ink-soft:#4A5E63;
+  --teal:#1F6F6B; --teal-dark:#174F4C; --amber:#D99A1E; --red:#B4412F; --green:#2E8B57;
+  --rule:#CBD5D2; --focus:#1F6F6B;
+  --r:3px; --nav-h:52px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{font-family:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bone);color:var(--ink);line-height:1.5;font-size:15px}
+h1,h2,h3{margin:0 0 .5rem;line-height:1.25;font-weight:600}
+h1{font-size:1.6rem} h2{font-size:1.2rem} h3{font-size:1rem}
+p{margin:.25rem 0 .75rem}
+a{color:var(--teal)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+/* Navbar */
+#navbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:.25rem;height:var(--nav-h);padding:0 1rem;background:var(--ink);color:#fff;overflow-x:auto}
+#navbar .marca{font-weight:600;letter-spacing:.02em;margin-right:1rem;white-space:nowrap}
+#navbar .marca small{font-weight:400;opacity:.7;margin-left:.4rem}
+#navbar button{background:none;border:0;color:#D5E0DE;padding:.5rem .7rem;border-radius:var(--r);cursor:pointer;font:inherit;white-space:nowrap;position:relative}
+#navbar button:hover{background:rgba(255,255,255,.08)}
+#navbar button.activo{color:#fff;box-shadow:inset 0 -2px 0 var(--amber)}
+#navbar .espacio{flex:1}
+.badge{display:inline-block;min-width:1.2rem;padding:0 .35rem;margin-left:.3rem;border-radius:10px;background:var(--amber);color:var(--ink);font-size:.75rem;font-weight:600;text-align:center}
+
+/* Contenedor y vistas */
+#app{max-width:1040px;margin:0 auto;padding:1.5rem 1rem 3rem}
+.view{display:none}
+.view.activa{display:block}
+.panel{background:var(--panel);border:1px solid var(--rule);border-radius:var(--r);padding:1.25rem;margin-bottom:1.25rem}
+.cabecera{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+.muted{color:var(--ink-soft)}
+.vacio{padding:1.5rem;text-align:center;color:var(--ink-soft);border:1px dashed var(--rule);border-radius:var(--r)}
+#banner-config{background:#FFF3D6;border-bottom:1px solid var(--amber);padding:.6rem 1rem;text-align:center}
+
+/* Formularios y botones */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.9rem}
+.campo{display:flex;flex-direction:column;gap:.25rem}
+.campo.ancho{grid-column:1/-1}
+label{font-weight:500;font-size:.9rem}
+input,select,textarea{font:inherit;color:inherit;padding:.5rem .6rem;border:1px solid #9FB0AC;border-radius:var(--r);background:#fff}
+textarea{min-height:90px;resize:vertical}
+.check{flex-direction:row;align-items:flex-start;gap:.5rem}
+.check input{margin-top:.25rem}
+.btn{font:inherit;font-weight:500;padding:.5rem .95rem;border-radius:var(--r);border:1px solid var(--teal);background:var(--teal);color:#fff;cursor:pointer}
+.btn:hover{background:var(--teal-dark)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn.sec{background:transparent;color:var(--teal)}
+.btn.sec:hover{background:rgba(31,111,107,.08)}
+.btn.peligro{background:var(--red);border-color:var(--red)}
+.btn.mini{padding:.2rem .55rem;font-size:.85rem}
+.acciones{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}
+
+/* Listado tipo registro de laboratorio */
+.registro{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule)}
+.registro li{display:grid;grid-template-columns:auto 1fr auto;gap:.9rem;align-items:center;padding:.8rem .25rem;border-bottom:1px solid var(--rule)}
+.registro .codigo{font-variant-numeric:tabular-nums;font-weight:600;min-width:5.5rem}
+.registro .sub{font-size:.88rem;color:var(--ink-soft)}
+@media (max-width:640px){.registro li{grid-template-columns:1fr}}
+
+/* Piloto de estado (motivo visual del producto) */
+.piloto{display:inline-flex;align-items:center;gap:.45rem;font-size:.85rem;white-space:nowrap}
+.piloto::before{content:'';width:.7rem;height:.7rem;border-radius:50%;background:var(--ink-soft);box-shadow:0 0 0 3px rgba(18,38,43,.1)}
+.piloto.ok::before{background:var(--green);box-shadow:0 0 0 3px rgba(46,139,87,.22)}
+.piloto.warn::before{background:var(--amber);box-shadow:0 0 0 3px rgba(217,154,30,.28)}
+.piloto.err::before{background:var(--red);box-shadow:0 0 0 3px rgba(180,65,47,.22)}
+
+/* Toasts */
+#toast-container{position:fixed;top:calc(var(--nav-h) + .75rem);right:1rem;z-index:50;display:flex;flex-direction:column;gap:.5rem;max-width:min(380px,calc(100vw - 2rem))}
+.toast{padding:.7rem .9rem;border-radius:var(--r);background:var(--ink);color:#fff;border-left:5px solid var(--teal);box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.toast-exito{border-left-color:var(--green)}
+.toast-error{border-left-color:var(--red)}
+.toast-aviso{border-left-color:var(--amber)}
+@media (prefers-reduced-motion:no-preference){ .toast{animation:entra .18s ease-out} @keyframes entra{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}} }
+
+/* === CSS MODULO ALVARO === */
+.auth-caja{max-width:520px;margin:2rem auto}
+.pestanas{display:flex;gap:.25rem;margin-bottom:1rem;border-bottom:1px solid var(--rule)}
+.pestanas button{background:none;border:0;padding:.55rem .9rem;font:inherit;cursor:pointer;color:var(--ink-soft)}
+.pestanas button.activa{color:var(--ink);font-weight:600;box-shadow:inset 0 -2px 0 var(--teal)}
+
+/* === CSS MODULO ADRI === */
+.filtros{display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem}
+.filtros input{flex:1;min-width:200px}
+
+/* === CSS MODULO ISMAEL === */
+.notif-item.noleida .titulo{font-weight:600}
+.notif-item.noleida{background:rgba(217,154,30,.08)}
+</style>
+</head>
+<body>
+
+<div id="banner-config" hidden>Faltan las claves de Supabase. Edita <strong>SUPABASE_URL</strong> y <strong>SUPABASE_ANON_KEY</strong> al inicio de index.html.</div>
+
+<!-- === HTML NAVBAR Y CONTENEDOR PRINCIPAL === -->
+<nav id="navbar" aria-label="Navegación principal">
+  <span class="marca">CICT<small>Gestión de equipos</small></span>
+  <button data-nav="view-inicio" data-sesion>Inicio</button>
+  <button data-nav="view-catalogo" data-sesion>Catálogo</button>
+  <button data-nav="view-reservas" data-sesion>Reservas</button>
+  <button data-nav="view-incidencias" data-sesion>Incidencias</button>
+  <button data-nav="view-notificaciones" data-sesion>Avisos<span class="badge" id="badge-notif" hidden>0</span></button>
+  <button data-nav="view-usuarios" data-sesion data-roles="administrador">Usuarios</button>
+  <button data-nav="view-economia" data-sesion data-roles="administrador,responsable_economico">Economía</button>
+  <span class="espacio"></span>
+  <button data-nav="view-perfil" data-sesion>Mi perfil</button>
+  <button id="btn-logout" data-sesion>Salir</button>
+</nav>
+
+<div id="toast-container" aria-live="polite"></div>
+
+<main id="app">
+
+  <!-- Vista de inicio (CORE) -->
+  <section class="view" id="view-inicio">
+    <div class="panel">
+      <h1 id="inicio-saludo">Bienvenido</h1>
+      <p class="muted" id="inicio-detalle"></p>
+      <div id="inicio-aviso" class="muted"></div>
+    </div>
+  </section>
+
+<!-- === HTML MODULO ALVARO: IDENTIDAD, ROLES Y ECONOMIA === -->
+  <section class="view" id="view-login">
+    <div class="panel auth-caja">
+      <div class="pestanas" role="tablist">
+        <button type="button" class="activa" data-auth-tab="login" role="tab">Iniciar sesión</button>
+        <button type="button" data-auth-tab="registro" role="tab">Crear cuenta</button>
+      </div>
+
+      <form id="form-login">
+        <div class="form-grid">
+          <div class="campo ancho"><label for="login-email">Correo electrónico</label><input id="login-email" type="email" required autocomplete="email"></div>
+          <div class="campo ancho"><label for="login-pass">Contraseña</label><input id="login-pass" type="password" required autocomplete="current-password"></div>
+        </div>
+        <div class="acciones"><button class="btn" type="submit">Iniciar sesión</button></div>
+      </form>
+
+      <form id="form-registro" hidden>
+        <div class="form-grid">
+          <div class="campo"><label for="reg-nombre">Nombre completo</label><input id="reg-nombre" required></div>
+          <div class="campo"><label for="reg-nif">NIF / NIE</label><input id="reg-nif" required></div>
+          <div class="campo ancho"><label for="reg-email">Correo electrónico</label><input id="reg-email" type="email" required autocomplete="email"></div>
+          <div class="campo"><label for="reg-vinc">Vinculación</label>
+            <select id="reg-vinc" required><option value="UCO">UCO</option><option value="EXTERNO">Externo</option></select></div>
+          <div class="campo"><label for="reg-org">Organización</label><input id="reg-org" required></div>
+          <div class="campo ancho"><label for="reg-pass">Contraseña (mínimo 6 caracteres)</label><input id="reg-pass" type="password" minlength="6" required autocomplete="new-password"></div>
+          <div class="campo ancho check"><input id="reg-rgpd" type="checkbox" required><label for="reg-rgpd">Acepto el tratamiento de mis datos personales conforme al RGPD.</label></div>
+        </div>
+        <div class="acciones"><button class="btn" type="submit">Solicitar cuenta</button></div>
+        <p class="muted">Un administrador debe aprobar tu cuenta antes de que puedas reservar equipos.</p>
+      </form>
+    </div>
+  </section>
+
+  <section class="view" id="view-perfil">
+    <div class="panel">
+      <h1>Mi perfil</h1>
+      <dl id="perfil-datos" class="muted"></dl>
+    </div>
+  </section>
+
+  <section class="view" id="view-usuarios">
+    <div class="panel">
+      <div class="cabecera"><h1>Usuarios</h1><button class="btn sec" id="btn-recargar-usuarios" type="button">Actualizar</button></div>
+      <ul class="registro" id="lista-usuarios"></ul>
+    </div>
+  </section>
+
+  <section class="view" id="view-economia">
+    <div class="panel">
+      <h1>Economía</h1>
+      <div class="vacio">Módulo pendiente de desarrollo (Álvaro): tarifas, facturación y consumos por usuario/organización.</div>
+    </div>
+  </section>
+
+<!-- === HTML MODULO ADRI: CATALOGO Y RESERVAS === -->
+  <section class="view" id="view-catalogo">
+    <div class="panel">
+      <div class="cabecera"><h1>Catálogo de equipos</h1></div>
+      <div class="filtros"><input id="filtro-equipos" type="search" placeholder="Buscar por nombre, código o laboratorio" aria-label="Buscar equipos"></div>
+      <ul class="registro" id="lista-equipos"></ul>
+    </div>
+  </section>
+
+  <section class="view" id="view-reservas">
+    <div class="panel">
+      <h1>Nueva reserva</h1>
+      <form id="form-reserva">
+        <div class="form-grid">
+          <div class="campo ancho"><label for="res-equipo">Equipo</label><select id="res-equipo" required></select></div>
+          <div class="campo"><label for="res-inicio">Inicio</label><input id="res-inicio" type="datetime-local" required></div>
+          <div class="campo"><label for="res-fin">Fin</label><input id="res-fin" type="datetime-local" required></div>
+        </div>
+        <div class="acciones"><button class="btn" type="submit">Reservar equipo</button></div>
+      </form>
+    </div>
+    <div class="panel">
+      <h2>Mis reservas</h2>
+      <ul class="registro" id="lista-reservas"></ul>
+    </div>
+  </section>
+
+<!-- === HTML MODULO ISMAEL: INCIDENCIAS Y NOTIFICACIONES === -->
+  <section class="view" id="view-incidencias">
+    <div class="panel">
+      <h1>Reportar incidencia</h1>
+      <form id="form-incidencia">
+        <div class="form-grid">
+          <div class="campo ancho"><label for="inc-equipo">Equipo</label><select id="inc-equipo" required></select></div>
+          <div class="campo ancho"><label for="inc-desc">Descripción</label><textarea id="inc-desc" required></textarea></div>
+          <div class="campo ancho check"><input id="inc-grave" type="checkbox"><label for="inc-grave">Es grave (el equipo no se puede usar)</label></div>
+        </div>
+        <div class="acciones"><button class="btn" type="submit">Enviar incidencia</button></div>
+      </form>
+    </div>
+    <div class="panel">
+      <h2>Incidencias</h2>
+      <ul class="registro" id="lista-incidencias"></ul>
+    </div>
+  </section>
+
+  <section class="view" id="view-notificaciones">
+    <div class="panel">
+      <div class="cabecera"><h1>Avisos</h1><button class="btn sec" id="btn-leer-todas" type="button">Marcar todos como leídos</button></div>
+      <ul class="registro" id="lista-notificaciones"></ul>
+    </div>
+  </section>
+
+</main>
+
+<script>
+// === JS CORE: SUPABASE CLIENT, ROUTER SPA Y UTILIDADES ===
+const CONFIGURADO = !SUPABASE_URL.includes('TU-PROYECTO') && !SUPABASE_ANON_KEY.includes('TU_ANON');
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/** Estado global compartido. Los módulos se enganchan con registrarVista / App.hooksLogin / App.hooksLogout. */
+const App = {
+  session: null, user: null, perfil: null,
+  vistaActual: null,
+  vistas: {},          // id -> { publica, roles, requiereAprobada, onEnter }
+  hooksLogin: [],      // funciones async tras iniciar sesión y cargar perfil
+  hooksLogout: [],     // limpieza al cerrar sesión
+  canales: {}          // canales Realtime activos
+};
+
+/* ---------- Utilidades ---------- */
+const $  = (sel, ctx = document) => ctx.querySelector(sel);
+const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const formatearFecha = iso => iso ? new Date(iso).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+const ETIQUETA_ROL = { investigador:'Investigador', tecnico:'Técnico', administrador:'Administrador', responsable_economico:'Responsable económico' };
+
+function manejarError(error, contexto = 'Error') {
+  console.error(contexto, error);
+  mostrarAlerta(`${contexto}: ${error?.message || error}`, 'error');
+}
+
+/** Toast. tipo: 'info' | 'exito' | 'error' | 'aviso' */
+function mostrarAlerta(mensaje, tipo = 'info', ms = 4500) {
+  const t = document.createElement('div');
+  t.className = `toast toast-${tipo}`;
+  t.setAttribute('role', tipo === 'error' ? 'alert' : 'status');
+  t.textContent = mensaje;
+  $('#toast-container').appendChild(t);
+  setTimeout(() => t.remove(), ms);
+}
+
+/* ---------- Realtime ---------- */
+function suscribirTabla(nombre, tabla, callback, filtro) {
+  cancelarSuscripcion(nombre);
+  const cfg = { event: '*', schema: 'public', table: tabla };
+  if (filtro) cfg.filter = filtro;
+  App.canales[nombre] = db.channel('rt-' + nombre).on('postgres_changes', cfg, callback).subscribe();
+}
+function cancelarSuscripcion(nombre) {
+  if (App.canales[nombre]) { db.removeChannel(App.canales[nombre]); delete App.canales[nombre]; }
+}
+function cancelarSuscripciones() { Object.keys(App.canales).forEach(cancelarSuscripcion); }
+
+/* ---------- Router SPA ---------- */
+/** Cada módulo registra sus vistas: registrarVista('view-x', { roles:[...], requiereAprobada:true, publica:false, onEnter(){} }) */
+function registrarVista(id, opciones = {}) { App.vistas[id] = opciones; }
+
+function navigateTo(viewId) {
+  const el = document.getElementById(viewId);
+  if (!el || !el.classList.contains('view')) { mostrarAlerta('Vista no encontrada: ' + viewId, 'error'); return; }
+  const cfg = App.vistas[viewId] || {};
+
+  if (!cfg.publica && !App.user) { if (viewId !== 'view-login') return navigateTo('view-login'); }
+  if (viewId === 'view-login' && App.user) return navigateTo('view-inicio');
+  if (App.user && cfg.requiereAprobada && App.perfil?.estado_cuenta !== 'aprobada') {
+    mostrarAlerta('Tu cuenta aún no está aprobada por un administrador.', 'aviso');
+    return navigateTo('view-inicio');
+  }
+  if (App.user && cfg.roles && !cfg.roles.includes(App.perfil?.rol)) {
+    mostrarAlerta('No tienes permisos para acceder a esta sección.', 'error');
+    return navigateTo('view-inicio');
+  }
+
+  $$('.view').forEach(v => v.classList.toggle('activa', v === el));
+  $$('#navbar [data-nav]').forEach(b => b.classList.toggle('activo', b.dataset.nav === viewId));
+  App.vistaActual = viewId;
+  if (location.hash.slice(1) !== viewId) location.hash = viewId;
+  window.scrollTo(0, 0);
+  if (typeof cfg.onEnter === 'function') cfg.onEnter();
+}
+
+window.addEventListener('hashchange', () => {
+  const id = location.hash.slice(1);
+  if (id && id !== App.vistaActual && document.getElementById(id)) navigateTo(id);
+});
+
+function actualizarNavbar() {
+  const rol = App.perfil?.rol;
+  $$('#navbar [data-sesion]').forEach(b => {
+    const roles = b.dataset.roles ? b.dataset.roles.split(',') : null;
+    b.hidden = !App.user || (roles && !roles.includes(rol));
+  });
+}
+
+/* ---------- Sesión y perfil ---------- */
+async function cargarPerfil() {
+  const { data, error } = await db.from('perfiles').select('*').eq('id', App.user.id).single();
+  if (error) { manejarError(error, 'No se pudo cargar tu perfil'); App.perfil = null; return; }
+  App.perfil = data;
+}
+
+async function aplicarSesion(session) {
+  const mismoUsuario = session?.user?.id && session.user.id === App.user?.id;
+  App.session = session;
+  App.user = session?.user ?? null;
+  if (mismoUsuario) return; // refresco de token: no recargar nada
+
+  if (!App.user) {
+    App.perfil = null;
+    cancelarSuscripciones();
+    App.hooksLogout.forEach(f => f());
+    actualizarNavbar();
+    navigateTo('view-login');
+    return;
+  }
+  await cargarPerfil();
+  actualizarNavbar();
+  renderInicio();
+  for (const f of App.hooksLogin) { try { await f(); } catch (e) { console.error(e); } }
+  const destino = location.hash.slice(1);
+  navigateTo(destino && document.getElementById(destino) ? destino : 'view-inicio');
+}
+
+function renderInicio() {
+  const p = App.perfil;
+  if (!p) return;
+  $('#inicio-saludo').textContent = `Hola, ${p.nombre}`;
+  $('#inicio-detalle').textContent = `${ETIQUETA_ROL[p.rol] || p.rol} · ${p.organizacion} (${p.vinculacion})`;
+  const av = $('#inicio-aviso');
+  if (p.estado_cuenta === 'pendiente') av.textContent = 'Tu cuenta está pendiente de aprobación. Podrás reservar equipos cuando un administrador la apruebe.';
+  else if (p.estado_cuenta === 'rechazada') av.textContent = 'Tu solicitud de cuenta fue rechazada. Contacta con el CICT.';
+  else av.textContent = 'Cuenta aprobada. Ya puedes consultar el catálogo y reservar equipos.';
+}
+
+registrarVista('view-inicio', { onEnter: renderInicio });
+registrarVista('view-login', { publica: true });
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-nav]');
+  if (b) navigateTo(b.dataset.nav);
+});
+
+async function iniciarApp() {
+  if (!CONFIGURADO) $('#banner-config').hidden = false;
+  const { data } = await db.auth.getSession();
+  await aplicarSesion(data.session);
+  db.auth.onAuthStateChange((evento, session) => {
+    if (evento === 'INITIAL_SESSION') return;
+    setTimeout(() => aplicarSesion(session), 0); // evita bloqueos al llamar a Supabase dentro del callback
+  });
+}
+
+// === JS MODULO ALVARO ===
+// Identidad, roles y economía. Dueño: Álvaro.
+(function moduloAlvaro() {
+  registrarVista('view-perfil', { onEnter: renderPerfil });
+  registrarVista('view-usuarios', { roles: ['administrador'], onEnter: cargarUsuarios });
+  registrarVista('view-economia', { roles: ['administrador', 'responsable_economico'], requiereAprobada: true });
+
+  // Pestañas login / registro
+  $$('[data-auth-tab]').forEach(btn => btn.addEventListener('click', () => {
+    const modo = btn.dataset.authTab;
+    $$('[data-auth-tab]').forEach(b => b.classList.toggle('activa', b === btn));
+    $('#form-login').hidden = modo !== 'login';
+    $('#form-registro').hidden = modo !== 'registro';
+  }));
+
+  $('#form-login').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.submitter; btn.disabled = true;
+    const { error } = await db.auth.signInWithPassword({ email: $('#login-email').value.trim(), password: $('#login-pass').value });
+    btn.disabled = false;
+    if (error) return manejarError(error, 'No se pudo iniciar sesión');
+    e.target.reset();
+  });
+
+  $('#form-registro').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.submitter; btn.disabled = true;
+    const { data, error } = await db.auth.signUp({
+      email: $('#reg-email').value.trim(),
+      password: $('#reg-pass').value,
+      options: { data: {
+        nombre: $('#reg-nombre').value.trim(),
+        nif: $('#reg-nif').value.trim().toUpperCase(),
+        vinculacion: $('#reg-vinc').value,
+        organizacion: $('#reg-org').value.trim(),
+        consentimiento_rgpd: $('#reg-rgpd').checked
+      } }
+    });
+    btn.disabled = false;
+    if (error) return manejarError(error, 'No se pudo crear la cuenta');
+    e.target.reset();
+    if (!data.session) {
+      mostrarAlerta('Cuenta creada. Revisa tu correo para confirmarla.', 'exito', 7000);
+      $('[data-auth-tab="login"]').click();
+    } else {
+      mostrarAlerta('Cuenta creada. Un administrador debe aprobarla.', 'exito', 7000);
+    }
+  });
+
+  $('#btn-logout').addEventListener('click', async () => {
+    const { error } = await db.auth.signOut();
+    if (error) manejarError(error, 'No se pudo cerrar sesión');
+  });
+
+  function renderPerfil() {
+    const p = App.perfil; if (!p) return;
+    const filas = [
+      ['Nombre', p.nombre], ['Correo', p.email], ['NIF', p.nif], ['Vinculación', p.vinculacion],
+      ['Organización', p.organizacion], ['Rol', ETIQUETA_ROL[p.rol] || p.rol], ['Estado de la cuenta', p.estado_cuenta],
+      ['Alta', formatearFecha(p.created_at)]
+    ];
+    $('#perfil-datos').innerHTML = filas.map(([k, v]) => `<div style="display:flex;gap:1rem;padding:.3rem 0;border-bottom:1px solid var(--rule)"><dt style="min-width:10rem;font-weight:500;color:var(--ink)">${esc(k)}</dt><dd style="margin:0">${esc(v)}</dd></div>`).join('');
+  }
+
+  async function cargarUsuarios() {
+    const { data, error } = await db.from('perfiles').select('*').order('created_at', { ascending: false });
+    if (error) return manejarError(error, 'No se pudieron cargar los usuarios');
+    const ul = $('#lista-usuarios');
+    if (!data.length) { ul.innerHTML = '<li class="vacio">No hay usuarios.</li>'; return; }
+    ul.innerHTML = data.map(u => {
+      const clase = u.estado_cuenta === 'aprobada' ? 'ok' : u.estado_cuenta === 'pendiente' ? 'warn' : 'err';
+      const roles = Object.keys(ETIQUETA_ROL).map(r => `<option value="${r}" ${r === u.rol ? 'selected' : ''}>${ETIQUETA_ROL[r]}</option>`).join('');
+      return `<li data-id="${esc(u.id)}">
+        <span class="piloto ${clase}">${esc(u.estado_cuenta)}</span>
+        <div><strong>${esc(u.nombre)}</strong> <span class="sub">${esc(u.email)} · ${esc(u.vinculacion)} · ${esc(u.organizacion)}</span></div>
+        <div class="acciones" style="margin:0">
+          <select data-accion="rol" aria-label="Rol de ${esc(u.nombre)}">${roles}</select>
+          <button class="btn mini" data-accion="aprobada">Aprobar</button>
+          <button class="btn mini peligro" data-accion="rechazada">Rechazar</button>
+        </div></li>`;
+    }).join('');
+  }
+
+  $('#btn-recargar-usuarios').addEventListener('click', cargarUsuarios);
+  $('#lista-usuarios').addEventListener('click', async e => {
+    const b = e.target.closest('button[data-accion]'); if (!b) return;
+    const id = b.closest('li').dataset.id;
+    const { error } = await db.from('perfiles').update({ estado_cuenta: b.dataset.accion }).eq('id', id);
+    if (error) return manejarError(error, 'No se pudo actualizar la cuenta');
+    mostrarAlerta('Cuenta actualizada.', 'exito'); cargarUsuarios();
+  });
+  $('#lista-usuarios').addEventListener('change', async e => {
+    const s = e.target.closest('select[data-accion="rol"]'); if (!s) return;
+    const id = s.closest('li').dataset.id;
+    const { error } = await db.from('perfiles').update({ rol: s.value }).eq('id', id);
+    if (error) { manejarError(error, 'No se pudo cambiar el rol'); return cargarUsuarios(); }
+    mostrarAlerta('Rol actualizado.', 'exito');
+  });
+})();
+
+// === JS MODULO ADRI ===
+// Catálogo y reservas. Dueño: Adri.
+const Adri = { equipos: [], reservas: [] };
+(function moduloAdri() {
+  registrarVista('view-catalogo', { onEnter: cargarEquipos });
+  registrarVista('view-reservas', { requiereAprobada: true, onEnter: () => { rellenarSelectEquipos(); cargarReservas(); } });
+
+  App.hooksLogin.push(async () => {
+    await cargarEquipos();
+    suscribirTabla('equipos', 'equipos', () => cargarEquipos());
+    suscribirTabla('reservas', 'reservas', () => cargarReservas(), `usuario_id=eq.${App.user.id}`);
+  });
+  App.hooksLogout.push(() => { Adri.equipos = []; Adri.reservas = []; });
+
+  const PILOTO = { disponible: ['ok', 'Disponible'], ocupado: ['warn', 'Ocupado'], bloqueado_mantenimiento: ['err', 'En mantenimiento'] };
+
+  async function cargarEquipos() {
+    const { data, error } = await db.from('equipos').select('*').order('codigo');
+    if (error) return manejarError(error, 'No se pudo cargar el catálogo');
+    Adri.equipos = data;
+    renderEquipos(); rellenarSelectEquipos();
+    if (typeof Ismael !== 'undefined') Ismael.rellenarEquipos();
+  }
+
+  function renderEquipos() {
+    const q = $('#filtro-equipos').value.trim().toLowerCase();
+    const lista = Adri.equipos.filter(e => !q || [e.codigo, e.nombre, e.laboratorio].some(v => (v || '').toLowerCase().includes(q)));
+    const ul = $('#lista-equipos');
+    if (!lista.length) { ul.innerHTML = '<li class="vacio">No hay equipos que coincidan.</li>'; return; }
+    ul.innerHTML = lista.map(e => {
+      const [clase, txt] = PILOTO[e.estado] || ['', e.estado];
+      const reservable = e.estado === 'disponible' && App.perfil?.estado_cuenta === 'aprobada';
+      return `<li>
+        <span class="codigo">${esc(e.codigo)}</span>
+        <div><strong>${esc(e.nombre)}</strong>
+          <div class="sub">${esc(e.laboratorio)} · ${esc(e.ubicacion_fisica)} · ${esc(String(e.hora_apertura).slice(0,5))}–${esc(String(e.hora_cierre).slice(0,5))}</div>
+          ${e.especificaciones ? `<div class="sub">${esc(e.especificaciones)}</div>` : ''}</div>
+        <div class="acciones" style="margin:0;align-items:center"><span class="piloto ${clase}">${esc(txt)}</span>
+          <button class="btn mini" data-reservar="${esc(e.id)}" ${reservable ? '' : 'disabled'}>Reservar</button></div></li>`;
+    }).join('');
+  }
+
+  $('#filtro-equipos').addEventListener('input', renderEquipos);
+  $('#lista-equipos').addEventListener('click', e => {
+    const b = e.target.closest('[data-reservar]'); if (!b) return;
+    navigateTo('view-reservas');
+    $('#res-equipo').value = b.dataset.reservar;
+  });
+
+  function rellenarSelectEquipos() {
+    const s = $('#res-equipo'); const actual = s.value;
+    s.innerHTML = Adri.equipos.filter(e => e.estado === 'disponible').map(e => `<option value="${esc(e.id)}">${esc(e.codigo)} · ${esc(e.nombre)}</option>`).join('');
+    if (actual) s.value = actual;
+  }
+
+  async function cargarReservas() {
+    if (!App.user) return;
+    const { data, error } = await db.from('reservas').select('*, equipos(codigo,nombre)').eq('usuario_id', App.user.id).order('fecha_inicio', { ascending: false });
+    if (error) return manejarError(error, 'No se pudieron cargar tus reservas');
+    Adri.reservas = data; renderReservas();
+  }
+
+  function renderReservas() {
+    const ul = $('#lista-reservas');
+    if (!Adri.reservas.length) { ul.innerHTML = '<li class="vacio">Aún no tienes reservas.</li>'; return; }
+    ul.innerHTML = Adri.reservas.map(r => {
+      const clase = r.estado === 'confirmada' ? 'ok' : r.estado === 'cancelada' ? '' : 'warn';
+      const activa = r.estado === 'confirmada' || r.estado === 'pendiente_prioridad';
+      return `<li><span class="piloto ${clase}">${esc(r.estado.replace('_', ' '))}</span>
+        <div><strong>${esc(r.equipos?.codigo)} · ${esc(r.equipos?.nombre)}</strong>
+          <div class="sub">${esc(formatearFecha(r.fecha_inicio))} → ${esc(formatearFecha(r.fecha_fin))}${r.prioridad_uco ? ' · prioridad UCO' : ''}</div></div>
+        <div>${activa ? `<button class="btn mini sec" data-cancelar="${esc(r.id)}">Cancelar</button>` : ''}</div></li>`;
+    }).join('');
+  }
+
+  $('#lista-reservas').addEventListener('click', async e => {
+    const b = e.target.closest('[data-cancelar]'); if (!b) return;
+    const { error } = await db.from('reservas').update({ estado: 'cancelada' }).eq('id', b.dataset.cancelar);
+    if (error) return manejarError(error, 'No se pudo cancelar la reserva');
+    mostrarAlerta('Reserva cancelada.', 'exito'); cargarReservas();
+  });
+
+  $('#form-reserva').addEventListener('submit', async e => {
+    e.preventDefault();
+    const equipo = Adri.equipos.find(x => x.id === $('#res-equipo').value);
+    const ini = new Date($('#res-inicio').value), fin = new Date($('#res-fin').value);
+    if (!equipo) return mostrarAlerta('Selecciona un equipo disponible.', 'aviso');
+    if (!(fin > ini)) return mostrarAlerta('La hora de fin debe ser posterior a la de inicio.', 'aviso');
+    if (ini < new Date()) return mostrarAlerta('El inicio debe estar en el futuro.', 'aviso');
+
+    const minutos = d => d.getHours() * 60 + d.getMinutes();
+    const hm = t => { const [h, m] = String(t).split(':'); return (+h) * 60 + (+m); };
+    const mismoDia = ini.toDateString() === fin.toDateString();
+    if (!mismoDia || minutos(ini) < hm(equipo.hora_apertura) || minutos(fin) > hm(equipo.hora_cierre)) {
+      return mostrarAlerta(`Horario del equipo: ${String(equipo.hora_apertura).slice(0,5)}–${String(equipo.hora_cierre).slice(0,5)} (mismo día).`, 'aviso');
+    }
+
+    const btn = e.submitter; btn.disabled = true;
+    // TODO (Adri): lógica de prioridad UCO (desplazar reservas EXTERNO -> estado 'desplazada_uco').
+    // Por ahora, cualquier solape bloquea la reserva.
+    const { data: solapes, error: e1 } = await db.rpc('disponibilidad_equipo', { p_equipo: equipo.id, p_desde: ini.toISOString(), p_hasta: fin.toISOString() });
+    if (e1) { btn.disabled = false; return manejarError(e1, 'No se pudo comprobar la disponibilidad'); }
+    if (solapes.length) { btn.disabled = false; return mostrarAlerta('El equipo ya está reservado en ese tramo.', 'error'); }
+
+    const { error } = await db.from('reservas').insert({ usuario_id: App.user.id, equipo_id: equipo.id, fecha_inicio: ini.toISOString(), fecha_fin: fin.toISOString() });
+    btn.disabled = false;
+    if (error) return manejarError(error, 'No se pudo crear la reserva');
+    mostrarAlerta('Reserva confirmada.', 'exito'); e.target.reset(); rellenarSelectEquipos(); cargarReservas();
+  });
+})();
+
+// === JS MODULO ISMAEL ===
+// Incidencias y notificaciones. Dueño: Ismael.
+const Ismael = { rellenarEquipos: () => {} };
+(function moduloIsmael() {
+  registrarVista('view-incidencias', { requiereAprobada: true, onEnter: () => { Ismael.rellenarEquipos(); cargarIncidencias(); } });
+  registrarVista('view-notificaciones', { onEnter: cargarNotificaciones });
+
+  const esStaff = () => ['tecnico', 'administrador'].includes(App.perfil?.rol);
+
+  App.hooksLogin.push(async () => {
+    await cargarNotificaciones();
+    suscribirTabla('incidencias', 'incidencias', () => cargarIncidencias());
+    suscribirTabla('notificaciones', 'notificaciones', payload => {
+      if (payload.eventType === 'INSERT') mostrarAlerta(payload.new.titulo || 'Nueva notificación', 'aviso');
+      cargarNotificaciones();
+    }, `usuario_id=eq.${App.user.id}`);
+  });
+  App.hooksLogout.push(() => { $('#badge-notif').hidden = true; });
+
+  Ismael.rellenarEquipos = function () {
+    $('#inc-equipo').innerHTML = (Adri.equipos || []).map(e => `<option value="${esc(e.id)}">${esc(e.codigo)} · ${esc(e.nombre)}</option>`).join('');
+  };
+
+  /* ----- Incidencias ----- */
+  async function cargarIncidencias() {
+    if (!App.user) return;
+    const { data, error } = await db.from('incidencias').select('*, equipos(codigo,nombre)').order('created_at', { ascending: false });
+    if (error) return manejarError(error, 'No se pudieron cargar las incidencias');
+    const ul = $('#lista-incidencias');
+    if (!data.length) { ul.innerHTML = '<li class="vacio">No hay incidencias.</li>'; return; }
+    ul.innerHTML = data.map(i => {
+      const clase = i.estado === 'cerrada' ? 'ok' : i.es_grave ? 'err' : 'warn';
+      let acciones = '';
+      if (esStaff() && i.estado === 'abierta') acciones = `<button class="btn mini" data-inc="tomar" data-id="${esc(i.id)}">Tomar</button>`;
+      if (esStaff() && i.estado === 'en_proceso') acciones = `<button class="btn mini" data-inc="cerrar" data-id="${esc(i.id)}">Cerrar</button>`;
+      return `<li><span class="piloto ${clase}">${esc(i.estado.replace('_', ' '))}</span>
+        <div><strong>${esc(i.equipos?.codigo)} · ${esc(i.equipos?.nombre)}</strong>${i.es_grave ? ' <span class="sub">(grave)</span>' : ''}
+          <div class="sub">${esc(i.descripcion)}</div>
+          ${i.solucion_aplicada ? `<div class="sub">Solución: ${esc(i.solucion_aplicada)}</div>` : ''}
+          <div class="sub">${esc(formatearFecha(i.created_at))}</div></div>
+        <div>${acciones}</div></li>`;
+    }).join('');
+  }
+
+  $('#form-incidencia').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.submitter; btn.disabled = true;
+    const { error } = await db.from('incidencias').insert({
+      equipo_id: $('#inc-equipo').value, reportador_id: App.user.id,
+      descripcion: $('#inc-desc').value.trim(), es_grave: $('#inc-grave').checked
+    });
+    btn.disabled = false;
+    if (error) return manejarError(error, 'No se pudo enviar la incidencia');
+    mostrarAlerta('Incidencia enviada.', 'exito'); e.target.reset(); cargarIncidencias();
+  });
+
+  $('#lista-incidencias').addEventListener('click', async e => {
+    const b = e.target.closest('[data-inc]'); if (!b) return;
+    let cambios;
+    if (b.dataset.inc === 'tomar') cambios = { estado: 'en_proceso', tecnico_id: App.user.id };
+    else {
+      const solucion = prompt('Describe la solución aplicada:');
+      if (!solucion) return;
+      cambios = { estado: 'cerrada', solucion_aplicada: solucion.trim(), closed_at: new Date().toISOString() };
+    }
+    const { error } = await db.from('incidencias').update(cambios).eq('id', b.dataset.id);
+    if (error) return manejarError(error, 'No se pudo actualizar la incidencia');
+    mostrarAlerta('Incidencia actualizada.', 'exito'); cargarIncidencias();
+  });
+
+  /* ----- Notificaciones ----- */
+  async function cargarNotificaciones() {
+    if (!App.user) return;
+    const { data, error } = await db.from('notificaciones').select('*').order('created_at', { ascending: false }).limit(100);
+    if (error) return manejarError(error, 'No se pudieron cargar los avisos');
+    const sinLeer = data.filter(n => !n.leida).length;
+    const badge = $('#badge-notif'); badge.textContent = sinLeer; badge.hidden = sinLeer === 0;
+    const ul = $('#lista-notificaciones');
+    if (!data.length) { ul.innerHTML = '<li class="vacio">No tienes avisos.</li>'; return; }
+    ul.innerHTML = data.map(n => `<li class="notif-item ${n.leida ? '' : 'noleida'}">
+      <span class="piloto ${n.leida ? '' : 'warn'}">${n.leida ? 'leído' : 'nuevo'}</span>
+      <div><div class="titulo">${esc(n.titulo)}</div><div class="sub">${esc(n.mensaje)}</div><div class="sub">${esc(formatearFecha(n.created_at))}</div></div>
+      <div>${n.leida ? '' : `<button class="btn mini sec" data-leer="${esc(n.id)}">Marcar leído</button>`}</div></li>`).join('');
+  }
+
+  $('#lista-notificaciones').addEventListener('click', async e => {
+    const b = e.target.closest('[data-leer]'); if (!b) return;
+    const { error } = await db.from('notificaciones').update({ leida: true }).eq('id', b.dataset.leer);
+    if (error) return manejarError(error, 'No se pudo marcar como leído');
+    cargarNotificaciones();
+  });
+  $('#btn-leer-todas').addEventListener('click', async () => {
+    const { error } = await db.from('notificaciones').update({ leida: true }).eq('usuario_id', App.user.id).eq('leida', false);
+    if (error) return manejarError(error, 'No se pudieron marcar los avisos');
+    cargarNotificaciones();
+  });
+})();
+
+// Arranque (siempre al final)
+iniciarApp();
+</script>
+</body>
+</html>
